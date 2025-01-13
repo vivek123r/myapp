@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sms_advanced/sms_advanced.dart';
+import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:logger/logger.dart'; // Import the logger package
 
 void main() {
   runApp(const SmsApp());
@@ -12,8 +13,7 @@ class SmsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      
-title: 'Simple SMS App',
+      title: 'Simple SMS App',
       home: const SmsScreen(),
     );
   }
@@ -23,42 +23,34 @@ class SmsScreen extends StatefulWidget {
   const SmsScreen({super.key});
 
   @override
-  SmsScreenState createState() => SmsScreenState();
+  State<SmsScreen> createState() => _SmsScreenState();
 }
 
-class SmsScreenState extends State<SmsScreen> {
-  final SmsReceiver _smsReceiver = SmsReceiver();
-  String _receivedSms = 'No SMS received yet.';
-  bool _isListening = false;
+class _SmsScreenState extends State<SmsScreen> {
+  final List<SmsMessage> _messages = [];
+  final SmsQuery _query = SmsQuery();
+  final logger = Logger(); // Create a logger instance
 
-  @override
-  void initState() {
-    super.initState();
-    _requestPermissionsAndListen();
-  }
-
-  Future<void> _requestPermissionsAndListen() async {
+  Future<void> _readSMS() async {
+    // Request permission
     if (await Permission.sms.request().isGranted) {
-      _startListeningForSms();
+      try {
+        List<SmsMessage> messages = await _query.getAllSms;
+        setState(() {
+          _messages.addAll(messages
+);
+        });
+        //Log the message
+        for (var msg in messages) {
+          logger.d('SMS: ${msg.body}');
+        }
+      } catch (e) {
+        //Log the error
+        logger.e('Error reading SMS: $e');
+      }
     } else {
-      setState(() {
-        _receivedSms = 'Permission denied. Please enable SMS permissions.';
-      });
+      logger.w('SMS permission denied');
     }
-  }
-
-  void _startListeningForSms() {
-    if (_isListening) return;
-
-    _smsReceiver.onSmsReceived?.listen((SmsMessage message) {
-      setState(() {
-        _receivedSms = 'From: ${message.address}\nMessage: ${message.body}';
-      });
-    });
-
-    setState(() {
-      _isListening = true;
-    });
   }
 
   @override
@@ -67,14 +59,29 @@ class SmsScreenState extends State<SmsScreen> {
       appBar: AppBar(
         title: const Text('Simple SMS App'),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            _receivedSms,
-            style: const TextStyle(fontSize: 16),
-            textAlign: TextAlign.center,
-          ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: _readSMS,
+              child: const Text('Read SMS Messages'),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final message = _messages[index];
+                  return ListTile(
+                    title: Text('Message ${index + 1}'),
+                    subtitle: Text(message.body ?? 'No message body'),
+                  );
+                },
+              ),
+            )
+          ],
         ),
       ),
     );
