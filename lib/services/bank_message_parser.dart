@@ -7,7 +7,6 @@ class BankMessageParser {
     'VM-UNIONB', // Replace with your bank's short code (if applicable)
     // Add more bank identifiers as needed
   ];
-
   bool isBankMessage(dynamic message) {
     // Check if the sender is in our list of bank identifiers
     if (message.address == null) {
@@ -16,7 +15,6 @@ class BankMessageParser {
     return bankIdentifiers.any((identifier) =>
         message.address!.toLowerCase().contains(identifier.toLowerCase()));
   }
-
   Transaction? parseBankMessage(dynamic message) {
     final body = message.body?.toLowerCase() ?? '';
     if (body.contains('credited')) {
@@ -38,12 +36,10 @@ class BankMessageParser {
     }
     return null;
   }
-
   double? _extractAmount(String message) {
     // Regular expression to find a number (with optional decimal)
     final regex = RegExp(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)');
     final match = regex.firstMatch(message);
-
     if (match != null) {
       // Extract the matched string and remove commas
       final amountString = match.group(0)!.replaceAll(',', '');
