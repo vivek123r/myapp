@@ -1,9 +1,16 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'screens/balance_screen.dart';
 import '../screens/settings.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import '../screens/ExpenseTracker_screen.dart';
 
-void main() {
+void main() async{
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const ExpenseTrackerApp());
 }
 
@@ -37,6 +44,21 @@ class _MainScreenState extends State<MainScreen> {
     const BalanceScreen(),        // Balance Screen
     const SettingsScreen(),       // Settings Screen
   ];
+  // Sign in anonymously with Firebase
+  Future<void> signInAnonymously() async {
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
+      debugPrint("Signed in with UID: ${userCredential.user?.uid}");
+    } catch (e) {
+      debugPrint("Error signing in anonymously: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    signInAnonymously(); // Sign in anonymously on app startup
+  }
 
   void _onItemTapped(int index) {
     setState(() {

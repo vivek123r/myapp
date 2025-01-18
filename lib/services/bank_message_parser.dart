@@ -36,7 +36,7 @@ class BankMessageParser {
     }
     return null;
   }
-  double? _extractAmount(String message) {
+  int? _extractAmount(String message) {
     // Regular expression to find a number (with optional decimal)
     final regex = RegExp(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)');
     final match = regex.firstMatch(message);
@@ -44,7 +44,7 @@ class BankMessageParser {
       // Extract the matched string and remove commas
       final amountString = match.group(0)!.replaceAll(',', '');
       // Parse the string to a double
-      return double.tryParse(amountString);
+      return int.tryParse(amountString);
     }
     return null; // Return null if no amount is found
   }
