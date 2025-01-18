@@ -3,10 +3,48 @@ import '../models/transaction.dart';
 class BankMessageParser {
   // List of bank names or identifiers to check against
   final List<String> bankIdentifiers = [
-    'Union Bank of India', // Replace with your bank's name or identifier
-    'VM-UNIONB', // Replace with your bank's short code (if applicable)
-    // Add more bank identifiers as needed
+    // State Bank of India
+    'SBI', 'SBIN', 'SBI-IND',
+    // HDFC Bank
+    'HDFC', 'HDFC-BK', 'HDFCBK',
+    // ICICI Bank
+    'ICICI', 'ICICIBANK',
+    // Punjab National Bank
+    'PNB', 'PNB-INDIA',
+    // Axis Bank
+    'AXIS', 'AXISBANK', 'AXISBANKIN',
+    // Bank of Baroda
+    'BOB', 'BOB-INDIA', 'BOB_BANK',
+    // Kotak Mahindra Bank
+    'KOTAK', 'KOTAKMAHINDRA',
+    // Canara Bank
+    'CANARA', 'CANARABANK',
+    // Yes Bank
+    'YESBANK', 'YES-BANK',
+    // Union Bank of India
+    'UNIONBANK', 'UNIONB',
+    // IDFC First Bank
+    'IDFC', 'IDFCFIRST', 'IDFCB',
+    // Bank of India
+    'BOI', 'BANKOFINDIA',
+    // Indian Bank
+    'INDIANBANK', 'INDIAN-BANK',
+    // Federal Bank
+    'FEDERALBANK', 'FED-BANK',
+    // Syndicate Bank
+    'SYNDICATEBANK',
+    // Lakshmi Vilas Bank
+    'LVB', 'LAKSHMIVILAS',
+    // RBL Bank
+    'RBLBANK', 'RBL',
+    // IDBI Bank
+    'IDBI', 'IDBIBANK',
+    // Bandhan Bank
+    'BANDHANBANK',
+    // Karur Vysya Bank
+    'KVB', 'KVBANK'
   ];
+
   bool isBankMessage(dynamic message) {
     // Check if the sender is in our list of bank identifiers
     if (message.address == null) {
