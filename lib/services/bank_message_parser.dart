@@ -53,6 +53,7 @@ class BankMessageParser {
     return bankIdentifiers.any((identifier) =>
         message.address!.toLowerCase().contains(identifier.toLowerCase()));
   }
+
   Transaction? parseBankMessage(dynamic message) {
     final body = message.body?.toLowerCase() ?? '';
     if (body.contains('credited')) {
@@ -74,15 +75,17 @@ class BankMessageParser {
     }
     return null;
   }
-  int? _extractAmount(String message) {
-    // Regular expression to find a number (with optional decimal)
-    final regex = RegExp(r'(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)');
+
+  num? _extractAmount(String message) {
+    // Regular expression to find amounts starting with 'Rs:' or '₹', followed by numbers
+    final regex = RegExp(r'(?:Rs[:\s]?|₹|\$|€|£)(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)');
+
     final match = regex.firstMatch(message);
     if (match != null) {
-      // Extract the matched string and remove commas
-      final amountString = match.group(0)!.replaceAll(',', '');
+      // Extract the matched amount string and remove commas
+      final amountString = match.group(1)?.replaceAll(',', '');
       // Parse the string to a double
-      return int.tryParse(amountString);
+      return num.tryParse(amountString ?? '');
     }
     return null; // Return null if no amount is found
   }

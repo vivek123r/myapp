@@ -3,7 +3,7 @@ import 'package:logger/logger.dart';
 
 class Transaction {
   final String type;
-  final int amount;
+  final num amount;
   final DateTime date;
   static final logger = Logger();
 
@@ -51,7 +51,7 @@ class Transaction {
   Future<void> saveToFirestore() async {
     try {
       final firestore = FirebaseFirestore.instance;
-      await firestore.collection('transactions').add(this.toJson());
+      await firestore.collection('transactions').add(toJson());
       logger.i("Transaction saved successfully.");
     } catch (e) {
       logger.e("Error saving transaction: $e");
@@ -65,7 +65,7 @@ class Transaction {
       final querySnapshot = await firestore.collection('transactions').get();
       return querySnapshot.docs.map((doc) {
         try {
-          return Transaction.fromJson(doc.data() as Map<String, dynamic>);
+          return Transaction.fromJson(doc.data());
         } catch (e) {
           logger.e("Error processing transaction document: $e");
           return Transaction(type: 'unknown', amount: 0, date: DateTime.now());

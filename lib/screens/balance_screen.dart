@@ -29,6 +29,7 @@ class _BalanceScreenState extends State<BalanceScreen> {
     });
     _listenForNewSms();
   }
+
   Future<void> ensureAuthenticated() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -42,6 +43,7 @@ class _BalanceScreenState extends State<BalanceScreen> {
       logger.d("Already signed in: ${user.uid}");
     }
   }
+
   Future<void> _listenForNewSms() async {
     _smsService.onNewBankMessage.listen((Transaction transaction) {
       setState(() {
@@ -53,7 +55,15 @@ class _BalanceScreenState extends State<BalanceScreen> {
         _transactions.insert(0, transaction);
       });
       _saveTransactionToFirebase(transaction);
-      logger.d('New Transaction: \${transaction.toString()}');
+      logger.d('New Transaction: ${transaction.toString()}');
+
+      // Show a Snackbar with the transaction message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('New ${transaction.type} transaction: \$${transaction.amount}'),
+          duration: Duration(seconds: 3),
+        ),
+      );
     });
   }
 
@@ -69,9 +79,12 @@ class _BalanceScreenState extends State<BalanceScreen> {
             ? timestamp.toDate() // Convert Firestore Timestamp to DateTime
             : DateTime.tryParse(timestamp?.toString() ?? '') ?? DateTime.now(); // Handle String or fallback
 
+        // Convert 'amount' from integer (scaled cents) to double
+        final num storedAmount = data['amount'] ?? 0;
+
         return Transaction(
           type: data['type'] ?? 'unknown', // Default type if missing
-          amount: data['amount'] ?? 0,     // Default amount if missing
+          amount: storedAmount,         // Use the converted double value
           date: parsedDate,                // Use the parsed DateTime
         );
       }).toList();
@@ -83,7 +96,6 @@ class _BalanceScreenState extends State<BalanceScreen> {
       logger.e("Error fetching transactions from Firebase: ${e.toString()}");
     }
   }
-
 
   Future<void> _loadBalanceFromFirebase() async {
     try {
@@ -106,17 +118,17 @@ class _BalanceScreenState extends State<BalanceScreen> {
     }
   }
 
-
   Future<void> _saveTransactionToFirebase(Transaction transaction) async {
-    final firestoreInstance = firestore.FirebaseFirestore.instance; // Using the alias
+    final firestoreInstance = firestore.FirebaseFirestore.instance;
     try {
       await firestoreInstance.collection('transactions').add({
         'type': transaction.type,
-        'amount': transaction.amount,
+        'amount': (transaction.amount * 100).toInt(), // Scale to integer (cents)
         'date': transaction.date.toIso8601String(),
       });
+      logger.i("Transaction saved successfully.");
     } catch (e) {
-      logger.e("Error saving transaction to Firebase: \$e");
+      logger.e("Error saving transaction to Firebase: $e");
     }
   }
 
@@ -127,7 +139,7 @@ class _BalanceScreenState extends State<BalanceScreen> {
         'amount': balance,
       });
     } catch (e) {
-      logger.e("Error saving balance to Firebase: \$e");
+      logger.e("Error saving balance to Firebase: $e");
     }
   }
 
@@ -186,6 +198,7 @@ class _BalanceScreenState extends State<BalanceScreen> {
       logger.e('Error listing collections: $e');
     }
   }
+
   @override
   void dispose() {
     _smsService.dispose();
