@@ -46,7 +46,6 @@ class Transaction {
     }
   }
 
-
   // Method to save the transaction to Firestore
   Future<void> saveToFirestore() async {
     try {
