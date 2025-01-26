@@ -42,7 +42,6 @@ android {
 dependencies {
     // Import the Firebase BoM to manage Firebase SDK versions
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-
     // Firebase Analytics SDK
     implementation("com.google.firebase:firebase-analytics")
 
