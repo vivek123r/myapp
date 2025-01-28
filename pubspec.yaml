@@ -43,6 +43,7 @@ dependencies:
   cloud_firestore: ^5.2.0
   firebase_auth: ^5.1.3
   flutter_background_service: ^5.1.0
+  fl_chart: ^0.70.2
 
 dev_dependencies:
   flutter_test:
@@ -69,7 +70,7 @@ flutter:
   assets:
     - lib/Assets/icon/app_icon.png
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: false
   image_path: "lib/Assets/icon/app_icon.png"

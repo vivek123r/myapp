@@ -1,12 +1,27 @@
+// Root-level build.gradle file
+buildscript {
+    ext.kotlin_version = '1.9.0' // Define the Kotlin version
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1' // Android Gradle plugin
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Kotlin plugin
+        classpath "com.google.gms:google-services:4.3.15" // Google Services plugin
+    }
+}
+
 plugins {
     // Add the Google services plugin without applying it here
     id("com.google.gms.google-services") version "4.3.15" apply false
 }
+
 allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://jitpack.io' }
+        maven { url 'https://jitpack.io' } // For additional dependencies
     }
 }
 
