@@ -1,16 +1,21 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'screens/balance_screen.dart';
-import 'screens/settings.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'screens/settings.dart';
 import 'screens/ExpenseTracker_screen.dart';
+import 'screens/sms_screen.dart'; // Import the SmsScreen
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("Firebase initialized successfully");
+  } catch (e) {
+    debugPrint("Error initializing Firebase: $e");
+  }
   runApp(const ExpenseTrackerApp());
 }
 
@@ -40,12 +45,12 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _screens = [
-    const ExpenseTrackerScreen(), // Expense Tracker Screen
-    const BalanceScreen(),        // Balance Screen
-    const SettingsScreen(),       // Settings Screen
+    const ExpenseTrackerScreen(),
+    const SmsScreen(),
+    const SettingsScreen(),
+    // Add the SmsScreen
   ];
 
-  // Sign in anonymously with Firebase
   Future<void> signInAnonymously() async {
     try {
       UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
@@ -58,7 +63,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    signInAnonymously(); // Sign in anonymously on app startup
+    signInAnonymously();
   }
 
   void _onItemTapped(int index) {
@@ -67,7 +72,7 @@ class _MainScreenState extends State<MainScreen> {
     });
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
     );
   }
@@ -81,26 +86,31 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        children: _screens,
+      body: SafeArea(
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          children: _screens,
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onItemTapped,
+        backgroundColor: Colors.white, // Set a background color
+        selectedItemColor: Colors.blue, // Set selected item color
+        unselectedItemColor: Colors.grey, // Set unselected item color
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Expense Tracker',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance_wallet),
-            label: 'Balance',
+            icon: Icon(Icons.sms),
+            label: 'SMS', // Add the SMS item
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
