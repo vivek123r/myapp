@@ -1,10 +1,14 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens/settings.dart';
 import 'screens/ExpenseTracker_screen.dart';
-import 'screens/sms_screen.dart'; // Import the SmsScreen
+import 'screens/sms_screen.dart';
 import 'firebase_options.dart';
+import 'screens/login_screen.dart';
+import 'theme_notifier.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +20,12 @@ void main() async {
   } catch (e) {
     debugPrint("Error initializing Firebase: $e");
   }
-  runApp(const ExpenseTrackerApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeNotifier(),
+      child: const ExpenseTrackerApp(),
+    ),
+  );
 }
 
 class ExpenseTrackerApp extends StatelessWidget {
@@ -24,11 +33,26 @@ class ExpenseTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeNotifier = Provider.of<ThemeNotifier>(context);
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Expense Tracker',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MainScreen(),
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: themeNotifier.themeMode,
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasData) {
+            return MainScreen(); // User is logged in
+          } else {
+            return LoginScreen(); // User is not logged in
+          }
+        },
+      ),
     );
   }
 }
@@ -48,34 +72,7 @@ class _MainScreenState extends State<MainScreen> {
     const ExpenseTrackerScreen(),
     const SmsScreen(),
     const SettingsScreen(),
-    // Add the SmsScreen
   ];
-
-  Future<void> signInAnonymously() async {
-    try {
-      UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
-      debugPrint("Signed in with UID: ${userCredential.user?.uid}");
-    } catch (e) {
-      debugPrint("Error signing in anonymously: $e");
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    signInAnonymously();
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-    );
-  }
 
   @override
   void dispose() {
@@ -99,10 +96,19 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.white, // Set a background color
-        selectedItemColor: Colors.blue, // Set selected item color
-        unselectedItemColor: Colors.grey, // Set unselected item color
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+          );
+        },
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -110,7 +116,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.sms),
-            label: 'SMS', // Add the SMS item
+            label: 'SMS',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),

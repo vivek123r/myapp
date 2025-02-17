@@ -177,6 +177,7 @@ class _SmsScreenState extends State<SmsScreen> {
 class BankMessageParser {
   final List<String> bankIdentifiers = [
     'SBI','UNION BANK OF INDIA', 'SBIN', 'SBI-IND',
+    'UNION BANK', 'UNIONBANK', 'UNIONBK', 'UBI',
     'HDFC', 'HDFC-BK', 'HDFCBK',
     'ICICI', 'ICICIBANK',
     'PNB', 'PNB-INDIA',
@@ -198,13 +199,14 @@ class BankMessageParser {
     'KVB', 'KVBANK'
   ];
 
-  bool isBankMessage(dynamic message) {
+  bool isBankMessage(SmsMessage message) {
     if (message.address == null) {
       return false;
     }
     return bankIdentifiers.any((identifier) =>
         message.address!.toLowerCase().contains(identifier.toLowerCase()));
   }
+
 
   Transaction? parseBankMessage(dynamic message) {
     final body = message.body?.toLowerCase() ?? '';
@@ -230,13 +232,11 @@ class BankMessageParser {
   }
 
   double? _extractAmount(String message) {
-    final regex = RegExp(r'\brs[:\s]?(\d+(\.\d{1,2})?)', caseSensitive: false);
+    final regex = RegExp(r'(?:rs[:\s]?|inr[:\s]?)(\d+(\.\d{1,2})?)', caseSensitive: false);
     final match = regex.firstMatch(message);
-    if (match != null) {
-      return double.tryParse(match.group(1)!);
-    }
-    return null;
+    return match != null ? double.tryParse(match.group(1)!) : null;
   }
+
 
   double? _extractBalance(String message) {
     final regex = RegExp(r'\bavl bal rs[:\s]?(\d+(\.\d{1,2})?)', caseSensitive: false);
