@@ -106,7 +106,6 @@ class _MainScreenState extends State<MainScreen> {
             curve: Curves.easeInOut,
           );
         },
-        backgroundColor: Colors.white,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         items: const [

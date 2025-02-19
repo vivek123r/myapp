@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ExpenseTrackerScreen extends StatefulWidget {
   const ExpenseTrackerScreen({super.key});
@@ -15,9 +17,17 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _expenseAmountController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
+  final TextRecognizer _textRecognizer = TextRecognizer();
+  final ImagePicker _imagePicker = ImagePicker();
+  double? _scannedAmount; // Temporarily store the scanned amount
+  String? _scannedCategory; // Temporarily store the scanned category
+  bool _showScannedDetails = false; // Control visibility of the confirmation UI sec
   String _selectedCategory = 'Food';
   String _selectedMonth = 'January';
-  String _selectedYear = DateTime.now().year.toString();
+  String _selectedYear = DateTime
+      .now()
+      .year
+      .toString();
   double _totalSalary = 0.0;
   double _totalExpenses = 0.0;
   double _balance = 0.0;
@@ -39,13 +49,72 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
     _salaryController.dispose();
     _expenseAmountController.dispose();
     _yearController.dispose();
+    _textRecognizer.close();
     super.dispose();
+  }
+
+  Future<void> _scanBill() async {
+    // Pick an image from the gallery or camera
+    final XFile? imageFile = await _imagePicker.pickImage(
+        source: ImageSource.camera);
+
+    if (imageFile != null) {
+      // Process the image to extract text
+      final inputImage = InputImage.fromFilePath(imageFile.path);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(
+          inputImage);
+
+      // Extract relevant information from the recognized text
+      final String scannedText = recognizedText.text;
+      final double? amount = _extractAmount(scannedText);
+      final String? category = _extractCategory(scannedText);
+
+      if (amount != null) {
+        setState(() {
+          _scannedAmount = amount; // Store the scanned amount
+          _scannedCategory = category ??
+              _selectedCategory; // Store the scanned category (or default)
+          _showScannedDetails = true; // Show the confirmation UI section
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not detect amount from the bill.')),
+        );
+      }
+    }
+  }
+
+  double? _extractAmount(String text) {
+    // Use regex or other logic to extract the amount from the text
+    final RegExp amountRegExp = RegExp(r'\b\d+\.\d{2}\b');
+    final match = amountRegExp.firstMatch(text);
+    if (match != null) {
+      return double.tryParse(match.group(0)!);
+    }
+    return null;
+  }
+
+  String? _extractCategory(String text) {
+    // Use simple logic to detect category based on keywords
+    if (text.toLowerCase().contains('food') ||
+        text.toLowerCase().contains('restaurant')) {
+      return 'Food';
+    } else if (text.toLowerCase().contains('travel') ||
+        text.toLowerCase().contains('fuel')) {
+      return 'Travel';
+    } else if (text.toLowerCase().contains('movie') ||
+        text.toLowerCase().contains('entertainment')) {
+      return 'Entertainment';
+    } else {
+      return 'Other';
+    }
   }
 
   Future<void> _saveSalaryToFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance.collection('expenses').doc('${user.uid}-${_selectedMonth}-${_selectedYear}').set({
+      await FirebaseFirestore.instance.collection('expenses').doc(
+          '${user.uid}-${_selectedMonth}-${_selectedYear}').set({
         'totalSalary': _totalSalary,
         'balance': _balance,
         'month': _selectedMonth,
@@ -57,7 +126,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   Future<void> _saveExpensesToFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirebaseFirestore.instance.collection('expenses').doc('${user.uid}-${_selectedMonth}-${_selectedYear}').set({
+      await FirebaseFirestore.instance.collection('expenses').doc(
+          '${user.uid}-${_selectedMonth}-${_selectedYear}').set({
         'expenses': _expenses,
         'totalExpenses': _totalExpenses,
         'balance': _balance,
@@ -70,7 +140,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   Future<void> _loadDataFromFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('expenses').doc('${user.uid}-${_selectedMonth}-${_selectedYear}').get();
+      final doc = await FirebaseFirestore.instance.collection('expenses').doc(
+          '${user.uid}-${_selectedMonth}-${_selectedYear}').get();
       if (doc.exists) {
         setState(() {
           _totalSalary = (doc['totalSalary'] as num?)?.toDouble() ?? 0.0;
@@ -97,7 +168,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   void _setSalary() {
     setState(() {
       _totalSalary = double.tryParse(_salaryController.text) ?? 0.0;
-      _totalExpenses = _getFilteredExpenses().fold(0.0, (sum, expense) => sum + expense['amount']);
+      _totalExpenses = _getFilteredExpenses().fold(
+          0.0, (sum, expense) => sum + expense['amount']);
       _balance = _totalSalary - _totalExpenses;
     });
     _saveSalaryToFirestore();
@@ -139,7 +211,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
 
   List<Map<String, dynamic>> _getFilteredExpenses() {
     return _expenses.where((expense) {
-      return expense['month'] == _selectedMonth && expense['year'] == _selectedYear;
+      return expense['month'] == _selectedMonth &&
+          expense['year'] == _selectedYear;
     }).toList();
   }
 
@@ -158,7 +231,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
         color: _getColorForCategory(entry.key),
         title: entry.key,
         radius: 40,
-        titleStyle: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+        titleStyle: TextStyle(
+            color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
         showTitle: entry.value > 10,
       );
     }).toList();
@@ -198,10 +272,6 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final textColor = theme.textTheme.bodyLarge?.color;
-    final backgroundColor = theme.cardColor;
-
     return Scaffold(
       appBar: AppBar(
         title: Text("Expense Tracker", style: TextStyle(color: Colors.white)),
@@ -235,7 +305,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
             ),
             SizedBox(height: 20),
 
-            // Salary and Balance Card
+            // Expense Breakdown Graph
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -246,27 +316,92 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Total Salary',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      'Expense Breakdown',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Rs $_totalSalary',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Balance',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Rs $_balance',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green),
+                    SizedBox(height: 10),
+                    SizedBox(
+                      height: 200,
+                      child: PieChart(
+                        PieChartData(
+                          sections: _createChartData(),
+                          centerSpaceRadius: 40,
+                          sectionsSpace: 2,
+                          startDegreeOffset: 0,
+                          pieTouchData: PieTouchData(
+                            touchCallback: (FlTouchEvent event,
+                                PieTouchResponse? response) {},
+                          ),
+                          borderData: FlBorderData(show: false),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
+            ),
+            SizedBox(height: 20),
+
+            // Total Salary and Balance Side by Side
+            Row(
+              children: [
+                Expanded(
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Total Salary',
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.grey[600]),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '$_totalSalary',
+                            style: TextStyle(fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueAccent),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Balance',
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.grey[600]),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '$_balance',
+                            style: TextStyle(fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 20),
 
@@ -285,7 +420,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               child: Text('Set Salary'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueAccent,
-                padding: EdgeInsets.symmetric(vertical: 20),
+                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
               ),
             ),
             SizedBox(height: 20),
@@ -319,17 +454,121 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               }).toList(),
             ),
             SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _addExpense,
-              child: Text('Add Expense'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: EdgeInsets.symmetric(vertical: 20),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _addExpense,
+                    child: Text('Add Expense'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: EdgeInsets.symmetric(
+                          vertical: 20, horizontal: 10),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _scanBill,
+                    child: Text('Scan Bill'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: EdgeInsets.symmetric(
+                          vertical: 20, horizontal: 10),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 20),
 
-            // Expense Breakdown and List
+            // Scanned Bill Details Section
+            if (_showScannedDetails) ...[
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Scanned Bill Details',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Amount: $_scannedAmount',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: _scannedCategory,
+                        decoration: InputDecoration(
+                          labelText: 'Category',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _scannedCategory = newValue!;
+                          });
+                        },
+                        items: _categories.map((String category) {
+                          return DropdownMenuItem<String>(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _expenseAmountController.text =
+                                      _scannedAmount!.toString();
+                                  _selectedCategory = _scannedCategory!;
+                                  _showScannedDetails = false;
+                                });
+                              },
+                              child: Text('Confirm'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showScannedDetails = false;
+                                });
+                              },
+                              child: Text('Cancel'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                padding: EdgeInsets.symmetric(vertical: 15),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+            ],
+
+            // Expense List
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -340,49 +579,32 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Expense Breakdown',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    SizedBox(
-                      height: 200,
-                      child: PieChart(
-                        PieChartData(
-                          sections: _createChartData(),
-                          centerSpaceRadius: 40,
-                          sectionsSpace: 2,
-                          startDegreeOffset: 0,
-                          pieTouchData: PieTouchData(
-                            touchCallback: (FlTouchEvent event, PieTouchResponse? response) {},
-                          ),
-                          borderData: FlBorderData(show: false),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    Text(
                       'Expenses',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: _getFilteredExpenses().length,
-                      itemBuilder: (context, index) {
-                        final expense = _getFilteredExpenses()[index];
-                        return Card(
-                          margin: EdgeInsets.symmetric(vertical: 5),
-                          child: ListTile(
-                            title: Text(expense['category']),
-                            subtitle: Text('Rs ${expense['amount']}'),
-                            trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteExpense(index),
+                    Container(
+                      height: 230,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        physics: AlwaysScrollableScrollPhysics(),
+                        itemCount: _getFilteredExpenses().length,
+                        itemBuilder: (context, index) {
+                          final expense = _getFilteredExpenses()[index];
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 5),
+                            child: ListTile(
+                              title: Text(expense['category']),
+                              subtitle: Text('Rs ${expense['amount']}'),
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteExpense(index),
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
