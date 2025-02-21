@@ -32,7 +32,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   double _totalExpenses = 0.0;
   double _balance = 0.0;
   final List<Map<String, dynamic>> _expenses = [];
-  final List<String> _categories = ['Food', 'Travel', 'Entertainment', 'Other'];
+  final List<String> _categories = ['Food', 'Travel', 'Entertainment', 'Other','shopping','rent','bill','grocery','fuel'];
   final List<String> _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -85,14 +85,47 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   }
 
   double? _extractAmount(String text) {
-    // Use regex or other logic to extract the amount from the text
-    final RegExp amountRegExp = RegExp(r'\b\d+\.\d{2}\b');
-    final match = amountRegExp.firstMatch(text);
-    if (match != null) {
-      return double.tryParse(match.group(0)!);
+    final RegExp amountRegExp = RegExp(r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b');
+    final List<String> identifiers = [
+      'net amount', // Highest priority
+      'Net Amt',
+      'grand total',
+      'total amount',
+      'final amount',
+      'balance due',
+      'total',
+      'amount',
+      'due',
+      'payable',
+      'subtotal'
+    ];
+    final lowerText = text.toLowerCase();
+
+    double? lastMatchAmount;
+    int lastMatchIndex = -1;
+
+    for (var identifier in identifiers) {
+      final matches = identifier.allMatches(lowerText);
+      for (final match in matches) {
+        final substring = text.substring(match.end);
+        final amountMatch = amountRegExp.firstMatch(substring);
+        if (amountMatch != null) {
+          final amountString = amountMatch.group(0)!.replaceAll(',', '');
+          final amount = double.tryParse(amountString);
+          if (amount != null) {
+            if (match.start > lastMatchIndex) {  // Ensures we get the last occurrence
+              lastMatchAmount = amount;
+              lastMatchIndex = match.start;
+            }
+          }
+        }
+      }
     }
-    return null;
+
+    return lastMatchAmount;
   }
+
+
 
   String? _extractCategory(String text) {
     // Use simple logic to detect category based on keywords
@@ -250,6 +283,16 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
         return Colors.green;
       case 'Other':
         return Colors.yellow;
+      case 'shopping':
+        return Colors.purple;
+      case 'rent':
+        return Colors.orange;
+      case 'bill':
+        return Colors.pink;
+      case 'grocery':
+        return Colors.teal;
+       case 'fuel':
+        return Colors.indigo;
       default:
         return Colors.grey;
     }
