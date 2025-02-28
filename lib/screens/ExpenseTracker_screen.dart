@@ -1,4 +1,3 @@
-// lib/screens/ExpenseTracker_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,6 +18,10 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextRecognizer _textRecognizer = TextRecognizer();
   final ImagePicker _imagePicker = ImagePicker();
+  final List<String> _years = List.generate(10, (index) =>
+      (DateTime
+          .now()
+          .year - index).toString());
   double? _scannedAmount; // Temporarily store the scanned amount
   String? _scannedCategory; // Temporarily store the scanned category
   bool _showScannedDetails = false; // Control visibility of the confirmation UI sec
@@ -31,8 +34,29 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   double _totalSalary = 0.0;
   double _totalExpenses = 0.0;
   double _balance = 0.0;
+  String _comparisonYear = (DateTime
+      .now()
+      .year - 1).toString();
+  bool _isMonthView = true; // Toggle between month and year view
+  bool _showYearComparison = false; // Toggle for year comparison view
+  Map<String, double> _yearlyTotals = {
+  }; // To store yearly totals for comparison
+  Map<String, double> _yearlyExpenses = {
+  }; // To store yearly expenses for comparison
+  Map<String, double> _yearlySavings = {
+  }; // To store yearly savings for comparison
   final List<Map<String, dynamic>> _expenses = [];
-  final List<String> _categories = ['Food', 'Travel', 'Entertainment', 'Other','shopping','rent','bill','grocery','fuel'];
+  final List<String> _categories = [
+    'Food',
+    'Travel',
+    'Entertainment',
+    'Other',
+    'shopping',
+    'rent',
+    'bill',
+    'grocery',
+    'fuel'
+  ];
   final List<String> _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -113,7 +137,8 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
           final amountString = amountMatch.group(0)!.replaceAll(',', '');
           final amount = double.tryParse(amountString);
           if (amount != null) {
-            if (match.start > lastMatchIndex) {  // Ensures we get the last occurrence
+            if (match.start >
+                lastMatchIndex) { // Ensures we get the last occurrence
               lastMatchAmount = amount;
               lastMatchIndex = match.start;
             }
@@ -124,8 +149,6 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
 
     return lastMatchAmount;
   }
-
-
 
   String? _extractCategory(String text) {
     // Use simple logic to detect category based on keywords
@@ -161,7 +184,9 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
     if (user != null) {
       await FirebaseFirestore.instance.collection('expenses').doc(
           '${user.uid}-${_selectedMonth}-${_selectedYear}').set({
-        'expenses': _expenses,
+        'expenses': _expenses.where((expense) =>
+        expense['month'] == _selectedMonth &&
+            expense['year'] == _selectedYear).toList(),
         'totalExpenses': _totalExpenses,
         'balance': _balance,
         'month': _selectedMonth,
@@ -170,17 +195,236 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
     }
   }
 
+  Future<void> _loadYearlyData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        // Clear existing data
+        setState(() {
+          _yearlyTotals.clear();
+          _yearlyExpenses.clear();
+          _yearlySavings.clear();
+        });
+
+        // Load data for each year
+        for (String year in _years) {
+          double yearSalary = 0.0;
+          double yearExpenses = 0.0;
+
+          // Gather data for each month in the year
+          for (String month in _months) {
+            try {
+              final doc = await FirebaseFirestore.instance
+                  .collection('expenses')
+                  .doc('${user.uid}-$month-$year')
+                  .get();
+
+              if (doc.exists) {
+                yearSalary += (doc['totalSalary'] as num?)?.toDouble() ?? 0.0;
+                yearExpenses += (doc['totalExpenses'] as num?)?.toDouble() ?? 0.0;
+              }
+            } catch (e) {
+              print('Error loading data for $month-$year: $e');
+              // Continue with other months even if one fails
+              continue;
+            }
+          }
+
+          // Store yearly totals
+          setState(() {
+            _yearlyTotals[year] = yearSalary;
+            _yearlyExpenses[year] = yearExpenses;
+            _yearlySavings[year] = yearSalary - yearExpenses;
+          });
+        }
+      } catch (e) {
+        print('Error in _loadYearlyData: $e');
+        // Show error message to user
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading yearly data. Please try again.')),
+        );
+        // Close the comparison view if there was an error
+        setState(() {
+          _showYearComparison = false;
+        });
+      }
+    }
+  }
+
+//  Add this method to toggle between month and year view
+  void _toggleView() {
+    setState(() {
+      _isMonthView = !_isMonthView;
+    });
+  }
+
+//  Add this method to toggle year comparison view
+  void _toggleYearComparison() {
+    setState(() {
+      _showYearComparison = !_showYearComparison;
+      if (_showYearComparison) {
+        // Automatically set comparison year to previous year
+        _comparisonYear = (int.parse(_selectedYear) - 1).toString();
+        _loadYearlyData();
+      }
+    });
+  }
+
+// Add this method to create year comparison chart data
+  List<BarChartGroupData> _createYearComparisonData() {
+    List<BarChartGroupData> barGroups = [];
+
+    // Only attempt to show comparison if both years' data exists
+    final selectedYearExists = _yearlyTotals.containsKey(_selectedYear);
+    final comparisonYearExists = _yearlyTotals.containsKey(_comparisonYear);
+
+    if (selectedYearExists) {
+      // Current year income
+      barGroups.add(
+        BarChartGroupData(
+          x: 0,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlyTotals[_selectedYear] ?? 0,
+              color: Colors.blue,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+
+      // Current year expenses
+      barGroups.add(
+        BarChartGroupData(
+          x: 2,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlyExpenses[_selectedYear] ?? 0,
+              color: Colors.red,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+
+      // Current year savings
+      barGroups.add(
+        BarChartGroupData(
+          x: 4,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlySavings[_selectedYear] ?? 0,
+              color: Colors.green,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (comparisonYearExists) {
+      // Comparison year income
+      barGroups.add(
+        BarChartGroupData(
+          x: 1,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlyTotals[_comparisonYear] ?? 0,
+              color: Colors.blueGrey,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+
+      // Comparison year expenses
+      barGroups.add(
+        BarChartGroupData(
+          x: 3,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlyExpenses[_comparisonYear] ?? 0,
+              color: Colors.redAccent,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+
+      // Comparison year savings
+      barGroups.add(
+        BarChartGroupData(
+          x: 5,
+          barRods: [
+            BarChartRodData(
+              toY: _yearlySavings[_comparisonYear] ?? 0,
+              color: Colors.lightGreen,
+              width: 15,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return barGroups;
+  }
+
+// Add this method to create yearly data for pie chart
+  List<PieChartSectionData> _createYearlyChartData() {
+    final data = <String, double>{};
+
+    // Filter expenses for the selected year
+    final yearlyExpenses = _expenses.where((expense) {
+      return expense['year'] == _selectedYear;
+    }).toList();
+
+    // Group by category
+    for (var expense in yearlyExpenses) {
+      final category = expense['category'] as String;
+      final amount = (expense['amount'] as num).toDouble();
+      data[category] = (data[category] ?? 0) + amount;
+    }
+
+    // Create pie chart sections
+    return data.entries.map((entry) {
+      return PieChartSectionData(
+        value: entry.value,
+        color: _getColorForCategory(entry.key),
+        title: entry.key,
+        radius: 40,
+        titleStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold
+        ),
+        showTitle: entry.value > 10,
+      );
+    }).toList();
+  }
+
   Future<void> _loadDataFromFirestore() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('expenses').doc(
           '${user.uid}-${_selectedMonth}-${_selectedYear}').get();
+
       if (doc.exists) {
         setState(() {
           _totalSalary = (doc['totalSalary'] as num?)?.toDouble() ?? 0.0;
           _totalExpenses = (doc['totalExpenses'] as num?)?.toDouble() ?? 0.0;
           _balance = (doc['balance'] as num?)?.toDouble() ?? 0.0;
-          _expenses.clear();
+
+          // Clear only expenses for the current month/year
+          _expenses.removeWhere((expense) =>
+          expense['month'] == _selectedMonth &&
+              expense['year'] == _selectedYear);
+
           if (doc['expenses'] is List) {
             for (var value in doc['expenses']) {
               _expenses.add(Map<String, dynamic>.from(value));
@@ -192,18 +436,31 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
           _totalSalary = 0.0;
           _totalExpenses = 0.0;
           _balance = 0.0;
-          _expenses.clear();
+          // Clear only expenses for the current month/year
+          _expenses.removeWhere((expense) =>
+          expense['month'] == _selectedMonth &&
+              expense['year'] == _selectedYear);
         });
       }
+
+      // Recalculate totals based on the filtered expenses
+      _recalculateTotals();
     }
+  }
+
+  void _recalculateTotals() {
+    final filteredExpenses = _getFilteredExpenses();
+    setState(() {
+      _totalExpenses = filteredExpenses.fold(
+          0.0, (sum, expense) => sum + (expense['amount'] as num).toDouble());
+      _balance = _totalSalary - _totalExpenses;
+    });
   }
 
   void _setSalary() {
     setState(() {
       _totalSalary = double.tryParse(_salaryController.text) ?? 0.0;
-      _totalExpenses = _getFilteredExpenses().fold(
-          0.0, (sum, expense) => sum + expense['amount']);
-      _balance = _totalSalary - _totalExpenses;
+      _recalculateTotals();
     });
     _saveSalaryToFirestore();
   }
@@ -224,8 +481,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
             'month': _selectedMonth,
             'year': _selectedYear,
           });
-          _totalExpenses += amount;
-          _balance = _totalSalary - _totalExpenses;
+          _recalculateTotals();
         });
         _expenseAmountController.clear();
         _saveExpensesToFirestore();
@@ -234,10 +490,12 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   }
 
   void _deleteExpense(int index) {
+    final filteredExpenses = _getFilteredExpenses();
+    final expenseToDelete = filteredExpenses[index];
+
     setState(() {
-      _totalExpenses -= _expenses[index]['amount'];
-      _balance = _totalSalary - _totalExpenses;
-      _expenses.removeAt(index);
+      _expenses.remove(expenseToDelete);
+      _recalculateTotals();
     });
     _saveExpensesToFirestore();
   }
@@ -291,7 +549,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
         return Colors.pink;
       case 'grocery':
         return Colors.teal;
-       case 'fuel':
+      case 'fuel':
         return Colors.indigo;
       default:
         return Colors.grey;
@@ -311,6 +569,24 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
       _selectedMonth = _months[newIndex];
       _loadDataFromFirestore();
     });
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          color: color,
+        ),
+        SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12),
+        ),
+      ],
+    );
   }
 
   @override
@@ -344,6 +620,27 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                   icon: Icon(Icons.arrow_forward_ios, color: Colors.blueAccent),
                   onPressed: () => _navigateMonth(true),
                 ),
+                SizedBox(width: 20),
+                // Year Dropdown
+                DropdownButton<String>(
+                  value: _selectedYear,
+                  onChanged: (String? newValue) {
+                    if (newValue != _selectedYear) {
+                      setState(() {
+                        _selectedYear = newValue!;
+                        // Close year comparison when changing years to avoid errors
+                        _showYearComparison = false;
+                      });
+                      _loadDataFromFirestore(); // Reload data for the selected year
+                    }
+                  },
+                  items: _years.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                ),
               ],
             ),
             SizedBox(height: 20),
@@ -358,17 +655,37 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text(
-                      'Expense Breakdown',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Expense Breakdown',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight
+                              .bold),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.swap_horiz),
+                              onPressed: _toggleView,
+                              tooltip: _isMonthView
+                                  ? 'Switch to Year View'
+                                  : 'Switch to Month View',
+                            ),
+                            SizedBox(width: 8),
+                            Text(_isMonthView ? 'Month' : 'Year'),
+                          ],
+                        ),
+                      ],
                     ),
                     SizedBox(height: 10),
                     SizedBox(
                       height: 200,
                       child: PieChart(
                         PieChartData(
-                          sections: _createChartData(),
+                          sections: _isMonthView
+                              ? _createChartData()
+                              : _createYearlyChartData(),
                           centerSpaceRadius: 40,
                           sectionsSpace: 2,
                           startDegreeOffset: 0,
@@ -385,6 +702,168 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               ),
             ),
             SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _toggleYearComparison,
+              child: Text(_showYearComparison
+                  ? 'Hide Year Comparison'
+                  : 'Compare Years'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purpleAccent,
+                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+              ),
+            ),
+            SizedBox(height: 10),
+            if (_showYearComparison) ...[
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Yearly Comparison',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Row(
+                            children: [
+                              DropdownButton<String>(
+                                value: _comparisonYear,
+                                onChanged: (String? newValue) {
+                                  if (newValue != null &&
+                                      newValue != _selectedYear) {
+                                    setState(() {
+                                      _comparisonYear = newValue;
+                                    });
+                                  }
+                                },
+                                items: _years
+                                    .where((year) => year != _selectedYear)
+                                    .map<DropdownMenuItem<String>>((
+                                    String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      SizedBox(
+                        height: 250,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            barTouchData: BarTouchData(
+                              enabled: true,
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (double value,
+                                      TitleMeta meta) {
+                                    const titles = [
+                                      'Income\nCurrent', 'Income\nPrev',
+                                      'Expense\nCurrent', 'Expense\nPrev',
+                                      'Savings\nCurrent', 'Savings\nPrev'
+                                    ];
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Text(
+                                        titles[value.toInt()],
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    );
+                                  },
+                                  reservedSize: 30,
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (double value,
+                                      TitleMeta meta) {
+                                    return Text(
+                                      value.toInt().toString(),
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                      ),
+                                    );
+                                  },
+                                  reservedSize: 40,
+                                ),
+                              ),
+                              topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            gridData: FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            barGroups: _createYearComparisonData(),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 15),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildLegendItem('Current Income', Colors.blue),
+                          _buildLegendItem('Previous Income', Colors.blueGrey),
+                          _buildLegendItem('Current Expenses', Colors.red),
+                          _buildLegendItem('Previous Expenses', Colors
+                              .redAccent),
+                          _buildLegendItem('Current Savings', Colors.green),
+                          _buildLegendItem('Previous Savings', Colors
+                              .lightGreen),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Total Savings: ${(_yearlySavings[_selectedYear] ?? 0)
+                            .toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      Text(
+                        'Savings Rate: ${_yearlyTotals[_selectedYear] != 0 ?
+                        ((_yearlySavings[_selectedYear] ?? 0) /
+                            (_yearlyTotals[_selectedYear] ?? 1) * 100)
+                            .toStringAsFixed(1) : 0}%',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+            ],
 
             // Total Salary and Balance Side by Side
             Row(
@@ -407,9 +886,11 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           SizedBox(height: 8),
                           Text(
                             '$_totalSalary',
-                            style: TextStyle(fontSize: 28,
+                            style: TextStyle(
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent),
+                                color: Colors.blueAccent
+                            ),
                           ),
                         ],
                       ),
@@ -435,9 +916,11 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           SizedBox(height: 8),
                           Text(
                             '$_balance',
-                            style: TextStyle(fontSize: 28,
+                            style: TextStyle(
+                                fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green),
+                                color: Colors.green
+                            ),
                           ),
                         ],
                       ),

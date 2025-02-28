@@ -3,7 +3,7 @@ plugins {
     id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
-    id("com.google.gms.google-services")
+    id("com.google.gms.google-services") // Google Services plugin
 }
 
 android {
@@ -17,7 +17,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = JavaVersion.VERSION_1_8.toString() // Ensure this is a String
     }
 
     defaultConfig {
@@ -25,7 +25,7 @@ android {
         applicationId = "com.example.myapp"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdkVersion 23
+        minSdk = 23 // Use `minSdk` instead of `minSdkVersion`
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -39,6 +39,7 @@ android {
         }
     }
 }
+
 dependencies {
     // Import the Firebase BoM to manage Firebase SDK versions
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
@@ -57,6 +58,7 @@ dependencies {
     // Add other Firebase products as needed
     // implementation("com.google.firebase:firebase-messaging") // Firebase Messaging
 }
+
 flutter {
     source = "../.."
 }

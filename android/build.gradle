@@ -1,6 +1,6 @@
 // Root-level build.gradle file
 buildscript {
-    ext.kotlin_version = '1.9.0' // Define the Kotlin version
+    ext.kotlin_version = '2.1.0' // Define the Kotlin version
     repositories {
         google()
         mavenCentral()
