@@ -26,7 +26,19 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   String? _scannedCategory; // Temporarily store the scanned category
   bool _showScannedDetails = false; // Control visibility of the confirmation UI sec
   String _selectedCategory = 'Food';
-  String _selectedMonth = 'January';
+  String _selectedMonth = DateTime.now().month == 1
+      ? 'January' : DateTime.now().month == 2
+      ? 'February' : DateTime.now().month == 3
+      ? 'March' : DateTime.now().month == 4
+      ? 'April' : DateTime.now().month == 5
+      ? 'May' : DateTime.now().month == 6
+      ? 'June' : DateTime.now().month == 7
+      ? 'July' : DateTime.now().month == 8
+      ? 'August' : DateTime.now().month == 9
+      ? 'September' : DateTime.now().month == 10
+      ? 'October' : DateTime.now().month == 11
+      ? 'November' : 'December';
+
   String _selectedYear = DateTime
       .now()
       .year

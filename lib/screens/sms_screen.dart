@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -102,6 +104,89 @@ class _SmsScreenState extends State<SmsScreen> {
       },
     );
   }
+  void _showCategoryDialog(Transaction transaction) {
+    String selectedCategory = 'Food'; // Default category
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Select Expense Category'),
+          content: DropdownButtonFormField<String>(
+            value: selectedCategory,
+            items: ['Food', 'Travel', 'Entertainment', 'Other', 'Shopping', 'Rent', 'Bill', 'Grocery', 'Fuel']
+                .map((category) => DropdownMenuItem(value: category, child: Text(category)))
+                .toList(),
+            onChanged: (value) {
+              selectedCategory = value!;
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                _addTransactionToExpenseTracker(transaction, selectedCategory);
+                Navigator.pop(context);
+              },
+              child: Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  void _addTransactionToExpenseTracker(Transaction transaction, String category) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Convert numeric month to full month name
+    List<String> months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
+    String monthName = months[transaction.date.month - 1]; // Get month from SMS transaction
+    String yearString = transaction.date.year.toString(); // Ensure year is a string
+
+    String docId = '${user.uid}-$monthName-$yearString';
+    DocumentReference docRef = FirebaseFirestore.instance.collection('expenses').doc(docId);
+
+    try {
+      DocumentSnapshot doc = await docRef.get();
+
+      List<dynamic> existingExpenses = [];
+      if (doc.exists && doc.data() != null && (doc.data() as Map).containsKey('expenses')) {
+        existingExpenses = List.from((doc.data() as Map)['expenses']);
+      }
+
+      existingExpenses.add({
+        'category': category,
+        'amount': transaction.amount,
+        'date': transaction.date.toString(),
+        'month': monthName, // ✅ Now correctly storing the transaction month
+        'year': yearString,  // ✅ Storing year as a string
+      });
+
+      await docRef.set({'expenses': existingExpenses}, SetOptions(merge: true));
+
+      print("✅ Transaction added successfully to $docId!");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Transaction added to $docId!')),
+      );
+    } catch (e) {
+      print("❌ Firestore Write Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to add transaction: $e')),
+      );
+    }
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +248,12 @@ class _SmsScreenState extends State<SmsScreen> {
                       Text('${transaction.type} on ${transaction.date.toString()}'),
                       Text('Balance: ${transaction.balance.toStringAsFixed(2)}'),
                     ],
+                  ),
+                  trailing: ElevatedButton(
+                    onPressed: () {
+                      _showCategoryDialog(transaction);
+                    },
+                    child: Text('Add'),
                   ),
                 );
               },
