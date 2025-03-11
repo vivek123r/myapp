@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class ExpenseTrackerScreen extends StatefulWidget {
   const ExpenseTrackerScreen({super.key});
@@ -18,6 +23,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   final TextEditingController _yearController = TextEditingController();
   final TextRecognizer _textRecognizer = TextRecognizer();
   final ImagePicker _imagePicker = ImagePicker();
+  final String _apiKey = 'AIzaSyAO0YfwN6N-jJt81C5Q3pomey7e1oAIKrU';
   final List<String> _years = List.generate(10, (index) =>
       (DateTime
           .now()
@@ -26,6 +32,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   String? _scannedCategory; // Temporarily store the scanned category
   bool _showScannedDetails = false; // Control visibility of the confirmation UI sec
   String _selectedCategory = 'Food';
+  bool _isLoading = false;
   String _selectedMonth = DateTime.now().month == 1
       ? 'January' : DateTime.now().month == 2
       ? 'February' : DateTime.now().month == 3
@@ -95,72 +102,139 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
         source: ImageSource.camera);
 
     if (imageFile != null) {
-      // Process the image to extract text
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      final RecognizedText recognizedText = await _textRecognizer.processImage(
-          inputImage);
+      setState(() {
+        _isLoading = true;
+      });
 
-      // Extract relevant information from the recognized text
-      final String scannedText = recognizedText.text;
-      final double? amount = _extractAmount(scannedText);
-      final String? category = _extractCategory(scannedText);
+      try {
+        // Process the image with Gemini API
+        final result = await _processImageWithGemini(imageFile.path);
 
-      if (amount != null) {
+        if (result != null) {
+          setState(() {
+            _scannedAmount = result['amount'];
+            _scannedCategory = result['category'] ?? _selectedCategory;
+            _showScannedDetails = true;
+            _isLoading = false;
+          });
+
+          print('EXTRACTED AMOUNT: ${result['amount']}');
+          print('EXTRACTED CATEGORY: ${result['category']}');
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not detect amount from the bill.')),
+          );
+        }
+      } catch (e) {
         setState(() {
-          _scannedAmount = amount; // Store the scanned amount
-          _scannedCategory = category ??
-              _selectedCategory; // Store the scanned category (or default)
-          _showScannedDetails = true; // Show the confirmation UI section
+          _isLoading = false;
         });
-      } else {
+
+        print('Error scanning bill: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not detect amount from the bill.')),
+          SnackBar(content: Text('Error processing image: ${e.toString()}')),
         );
       }
     }
   }
 
-  double? _extractAmount(String text) {
-    final RegExp amountRegExp = RegExp(r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b');
-    final List<String> identifiers = [
-      'net amount', // Highest priority
-      'Net Amt',
-      'grand total',
-      'total amount',
-      'final amount',
-      'balance due',
-      'total',
-      'amount',
-      'due',
-      'payable',
-      'subtotal'
-    ];
-    final lowerText = text.toLowerCase();
+  Future<Map<String, dynamic>?> _processImageWithGemini(String imagePath) async {
+    // Read image file as bytes
+    final File imageFile = File(imagePath);
+    final Uint8List imageBytes = await imageFile.readAsBytes();
 
-    double? lastMatchAmount;
-    int lastMatchIndex = -1;
+    // Initialize the Gemini API
+    final generativeModel = GenerativeModel(
+      model: 'gemini-2.0-flash',
+      apiKey: _apiKey,
+    );
 
-    for (var identifier in identifiers) {
-      final matches = identifier.allMatches(lowerText);
-      for (final match in matches) {
-        final substring = text.substring(match.end);
-        final amountMatch = amountRegExp.firstMatch(substring);
-        if (amountMatch != null) {
-          final amountString = amountMatch.group(0)!.replaceAll(',', '');
-          final amount = double.tryParse(amountString);
-          if (amount != null) {
-            if (match.start >
-                lastMatchIndex) { // Ensures we get the last occurrence
-              lastMatchAmount = amount;
-              lastMatchIndex = match.start;
+    // Create prompt with specific instructions for bill analysis
+    const String promptText = '''
+    Analyze this bill or receipt image.
+    Extract the total amount to be paid. Look for the final amount, which may be labeled as:
+    - "Total"
+    - "Grand Total"
+    - "Amount Due"
+    - "Net Amount"
+    - "Final Amount"
+    
+    If multiple amounts are present, use the final amount that includes all charges (e.g., subtotal, tax, discount).
+
+    Additionally, if you can confidently determine the category of the bill (e.g., Food, Travel, Entertainment, Shopping, etc.), include it in the response.
+
+    Return ONLY a JSON object with the following fields:
+    - "amount" (as a numeric value with no currency symbol)
+    - "category" (as a string, only if you can confidently determine it)
+
+    Example 1: {"amount": 467.00, "category": "Food"}
+    Example 2: {"amount": 120.50}
+  ''';
+
+    try {
+      // Create the prompt content
+      final prompt = TextPart(promptText);
+
+      // Create the image content
+      final imagePart = DataPart('image/jpeg', imageBytes);
+
+      // Combine text and image in a single content
+      final content = Content.multi([prompt, imagePart]);
+
+      // Generate content with the Gemini API
+      final response = await generativeModel.generateContent([content]);
+      final responseText = response.text;
+
+      print('GEMINI RESPONSE: $responseText');
+
+      // Parse the JSON response
+      if (responseText != null && responseText.isNotEmpty) {
+        try {
+          // Extract JSON from the response (handling potential text wrapping)
+          final jsonPattern = RegExp(r'\{.*\}', dotAll: true);
+          final match = jsonPattern.firstMatch(responseText);
+
+          if (match != null) {
+            final jsonStr = match.group(0);
+            final Map<String, dynamic> data = jsonDecode(jsonStr!);
+
+            // Validate and return the extracted data
+            if (data.containsKey('amount') && data['amount'] != null) {
+              // Convert to double if it's a number or string
+              final amount = data['amount'] is num
+                  ? (data['amount'] as num).toDouble()
+                  : double.tryParse(data['amount'].toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+
+              if (amount != null) {
+                // Validate the category
+                String category = data['category']?.toString() ?? 'Other';
+                if (!_categories.contains(category)) {
+                  category = 'Other'; // Default to "Other" if category is not in the list
+                }
+
+                return {
+                  'amount': amount,
+                  'category': category,
+                };
+              }
             }
           }
+        } catch (e) {
+          print('JSON parsing error: $e');
         }
       }
+    } catch (e) {
+      print('Gemini API error: $e');
+      rethrow;
     }
 
-    return lastMatchAmount;
+    return null;
   }
+
 
   String? _extractCategory(String text) {
     // Use simple logic to detect category based on keywords
