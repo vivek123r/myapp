@@ -92,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               SwitchListTile(
-                title: const Text('Dark Mode'),
+                title: const Text('light mode'),
                 value: themeNotifier.themeMode == ThemeMode.dark,
                 onChanged: (value) {
                   themeNotifier.toggleTheme(value);

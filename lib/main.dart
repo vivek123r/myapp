@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:myapp/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -38,8 +39,8 @@ class ExpenseTrackerApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Expense Tracker',
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
+      theme: ThemeData.dark(),
+      darkTheme: ThemeData.light(),
       themeMode: themeNotifier.themeMode,
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
@@ -69,9 +70,9 @@ class _MainScreenState extends State<MainScreen> {
   final PageController _pageController = PageController();
 
   final List<Widget> _screens = [
+    HomePage(),
     const ExpenseTrackerScreen(),
     const SmsScreen(),
-    const SettingsScreen(),
   ];
 
   @override
@@ -114,12 +115,12 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Expense Tracker',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.sms),
-            label: 'SMS',
+            icon: Icon(Icons.home),
+            label: 'home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.sms),
+            label: 'SMS',
           ),
         ],
       ),

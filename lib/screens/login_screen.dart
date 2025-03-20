@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../main.dart'; // Import your main screen
@@ -26,8 +27,20 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Define required scopes
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: [
+          'email',
+          // Add other scopes you need
+        ],
+      );
+
+      // Sign out first to clear any cached credentials
+      await googleSignIn.signOut();
+
       // Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
       if (googleUser == null) {
         setState(() {
           _isLoading = false;
@@ -45,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       // Sign in to Firebase with the credential
+      final UserCredential userCredential =
       await FirebaseAuth.instance.signInWithCredential(credential);
 
       // Navigate to the main screen after successful login
@@ -53,20 +67,33 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (context) => MainScreen()),
       );
     } catch (e) {
-      // Handle errors
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Google Sign-In failed: ${e.toString()}"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print("Google Sign-In failed: $e");
+      if (e is FirebaseAuthException) {
+        print("Firebase Auth Exception: ${e.code}, ${e.message}");
+
+        // Show user-friendly error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Authentication failed: ${e.message}")),
+        );
+      } else if (e is PlatformException) {
+        print("Platform Exception: ${e.code}, ${e.message}");
+
+        // Show user-friendly error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign-in error: ${e.message}")),
+        );
+      } else {
+        // General error handling
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Sign-in failed. Please try again.")),
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
-
   // Email/password login/signup method
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
@@ -353,23 +380,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   // Forgot password (only for login)
-                  if (_isLogin)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Add forgot password functionality here
-                        },
-                        child: Text(
-                          "Forgot Password",
-                          style: TextStyle(
-                            color: Color(0xFF7B3FF7),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  SizedBox(height: 20),
+
                   // Login/Signup button
                   SizedBox(
                     width: double.infinity,
@@ -385,6 +396,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isLogin ? 'Sign In' : 'Sign Up',
                             style: TextStyle(
                               fontSize: 16,
+                              color:Colors.black54,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
