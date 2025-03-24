@@ -94,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
   }
+
   // Email/password login/signup method
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
@@ -155,6 +156,123 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Forgot password dialog
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.white, // White background
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16), // Rounded corners
+          ),
+          title: Text(
+            "Forgot Password",
+            style: TextStyle(
+              color: Color(0xFF7B3FF7), // Violet text
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Enter your email address to reset your password.",
+                style: TextStyle(
+                  color: Colors.grey[700], // Grey text
+                ),
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  labelText: "Email",
+                  labelStyle: TextStyle(color: Colors.grey[600]), // Grey label
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.grey.shade300), // Light grey border
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF7B3FF7)), // Violet border when focused
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                style: TextStyle(color: Colors.black), // Black text
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+              },
+              child: Text(
+                "Cancel",
+                style: TextStyle(
+                  color: Colors.grey[700], // Grey text
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (emailController.text.isNotEmpty && emailController.text.contains("@")) {
+                  await _sendPasswordResetEmail(emailController.text.trim());
+                  Navigator.pop(context); // Close the dialog after sending the email
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Please enter a valid email address")),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF7B3FF7), // Violet background
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12), // Rounded corners
+                ),
+              ),
+              child: Text(
+                "Send",
+                style: TextStyle(
+                  color: Colors.white, // White text
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Send password reset email
+  Future<void> _sendPasswordResetEmail(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Password reset email sent to $email"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${e.message}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("An error occurred. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -293,6 +411,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   SizedBox(height: 20),
+                  // Forgot password (only for login)
+                  if (_isLogin)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _showForgotPasswordDialog,
+                        child: Text(
+                          "Forgot Password?",
+                          style: TextStyle(
+                            color: Color(0xFF7B3FF7), // Purple color
+                          ),
+                        ),
+                      ),
+                    ),
                   // Confirm password field (only for signup)
                   if (!_isLogin)
                     Column(
@@ -379,8 +511,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                       ],
                     ),
-                  // Forgot password (only for login)
-
                   // Login/Signup button
                   SizedBox(
                     width: double.infinity,
@@ -396,7 +526,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isLogin ? 'Sign In' : 'Sign Up',
                             style: TextStyle(
                               fontSize: 16,
-                              color:Colors.black54,
+                              color: Colors.black54,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -433,21 +563,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _socialButton(FontAwesomeIcons.facebookF, onTap: () {
-                          // Implement Facebook login if needed
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Facebook login not implemented yet"))
-                          );
-                        }),
-                        SizedBox(width: 20),
                         _socialButton(FontAwesomeIcons.google, onTap: _signInWithGoogle),
                         SizedBox(width: 20),
-                        _socialButton(FontAwesomeIcons.instagram, onTap: () {
-                          // Implement Instagram login if needed
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Instagram login not implemented yet"))
-                          );
-                        }),
                       ],
                     ),
                   ],

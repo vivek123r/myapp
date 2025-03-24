@@ -80,6 +80,8 @@ flutter:
   uses-material-design: true
   assets:
     - lib/Assets/icon/app_icon.png
+    - lib/Assets/icon/natural-mint-leafs.jpg
+    - lib/Assets/backgrounds/
 
 flutter_launcher_icons:
   android: true

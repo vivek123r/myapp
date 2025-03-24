@@ -16,7 +16,84 @@ class ExpenseTrackerScreen extends StatefulWidget {
   @override
   State<ExpenseTrackerScreen> createState() => _ExpenseTrackerScreenState();
 }
+class GradientButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
+  final bool isLoading;
 
+  const GradientButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isLoading
+              ? [
+            Colors.grey[400]!,
+            Colors.grey[600]!,
+          ]
+              : [
+            Colors.orange[300]!, // Light orange
+            Colors.orange[800]!, // Dark orange
+          ],
+          begin: Alignment.centerLeft, // Gradient starts from the left
+          end: Alignment.centerRight, // Gradient ends at the right
+        ),
+        borderRadius: BorderRadius.circular(10), // Rounded corners
+      ),
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent, // Make button background transparent
+          shadowColor: Colors.transparent, // Remove shadow
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20), // Button padding
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10), // Match container's border radius
+          ),
+          disabledForegroundColor: Colors.transparent,
+          disabledBackgroundColor: Colors.transparent,
+        ),
+        child: isLoading
+            ? Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Processing',
+              style: TextStyle(
+                color: Colors.white, // Text color
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        )
+            : Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white, // Text color
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _expenseAmountController = TextEditingController();
@@ -250,6 +327,103 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
     } else {
       return 'Other';
     }
+  }
+
+  void _showSalaryDialog(BuildContext context) {
+    // Create a TextEditingController for the dialog
+    final TextEditingController dialogController = TextEditingController();
+
+    // Pre-fill with existing value if available
+    if (_salaryController.text.isNotEmpty) {
+      dialogController.text = _salaryController.text;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Enter Your Salary',
+            style: TextStyle(
+              color: Colors.orange[800],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: TextField(
+            controller: dialogController,
+            autofocus: true, // Automatically show keyboard
+            decoration: InputDecoration(
+              labelText: 'Salary',
+              labelStyle: TextStyle(color: Colors.orange[300]),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: Colors.orange[100]!,
+                  width: 2,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: Colors.orange[500]!,
+                  width: 2,
+                ),
+              ),
+            ),
+            keyboardType: TextInputType.number,
+            style: TextStyle(color: Colors.orange[300]),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.orange[300]!,
+                    Colors.orange[800]!,
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextButton(
+                onPressed: () {
+                  // Update the main controller
+                  _salaryController.text = dialogController.text;
+
+                  // Call your existing salary update method
+                  _setSalary();
+
+                  // Close the dialog
+                  Navigator.of(context).pop();
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  backgroundColor: Colors.transparent,
+                ),
+                child: Text(
+                  'Update',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _saveSalaryToFirestore() async {
@@ -620,25 +794,25 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   Color _getColorForCategory(String category) {
     switch (category) {
       case 'Food':
-        return Colors.red;
+        return Colors.orange[300]!; // Light orange
       case 'Travel':
-        return Colors.blue;
+        return Colors.orange[400]!; // Slightly darker orange
       case 'Entertainment':
-        return Colors.green;
+        return Colors.orange[500]!; // Medium orange
       case 'Other':
-        return Colors.yellow;
+        return Colors.orange[600]!; // Darker orange
       case 'shopping':
-        return Colors.purple;
+        return Colors.orange[700]!; // Even darker orange
       case 'rent':
-        return Colors.orange;
+        return Colors.orange[800]!; // Very dark orange
       case 'bill':
-        return Colors.pink;
+        return Colors.orange[900]!; // Darkest orange
       case 'grocery':
-        return Colors.teal;
+        return Colors.deepOrange[300]!; // Deep orange shade
       case 'fuel':
-        return Colors.indigo;
+        return Colors.deepOrange[400]!; // Slightly darker deep orange
       default:
-        return Colors.grey;
+        return Colors.grey; // Fallback color
     }
   }
 
@@ -678,59 +852,77 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Expense Tracker", style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.blueAccent,
-        elevation: 0,
-      ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Month Navigation
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.arrow_back_ios, color: Colors.blueAccent),
-                  onPressed: () => _navigateMonth(false),
+            // Month Navigation Section
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Previous Month Button
+                    IconButton(
+                      icon: Icon(Icons.arrow_back_ios, color: Colors.orange[200]),
+                      onPressed: () => _navigateMonth(false),
+                    ),
+                    // Current Month and Year
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _selectedMonth,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        DropdownButton<String>(
+                          value: _selectedYear,
+                          underline: Container(), // Remove the default underline
+                          icon: Icon(Icons.arrow_drop_down, color: Colors.orange[400]),
+                          onChanged: (String? newValue) {
+                            if (newValue != _selectedYear) {
+                              setState(() {
+                                _selectedYear = newValue!;
+                                _showYearComparison = false; // Close comparison when changing years
+                              });
+                              _loadDataFromFirestore(); // Reload data for the selected year
+                            }
+                          },
+                          items: _years.map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: TextStyle(color: Colors.orange),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    // Next Month Button
+                    IconButton(
+                      icon: Icon(Icons.arrow_forward_ios, color: Colors.orange[200]),
+                      onPressed: () => _navigateMonth(true),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 20),
-                Text(
-                  _selectedMonth,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(width: 20),
-                IconButton(
-                  icon: Icon(Icons.arrow_forward_ios, color: Colors.blueAccent),
-                  onPressed: () => _navigateMonth(true),
-                ),
-                SizedBox(width: 20),
-                // Year Dropdown
-                DropdownButton<String>(
-                  value: _selectedYear,
-                  onChanged: (String? newValue) {
-                    if (newValue != _selectedYear) {
-                      setState(() {
-                        _selectedYear = newValue!;
-                        // Close year comparison when changing years to avoid errors
-                        _showYearComparison = false;
-                      });
-                      _loadDataFromFirestore(); // Reload data for the selected year
-                    }
-                  },
-                  items: _years.map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                ),
-              ],
+              ),
             ),
-            SizedBox(height: 20),
-
             // Expense Breakdown Graph
             Card(
               elevation: 4,
@@ -748,19 +940,6 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           'Expense Breakdown',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight
                               .bold),
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.swap_horiz),
-                              onPressed: _toggleView,
-                              tooltip: _isMonthView
-                                  ? 'Switch to Year View'
-                                  : 'Switch to Month View',
-                            ),
-                            SizedBox(width: 8),
-                            Text(_isMonthView ? 'Month' : 'Year'),
-                          ],
                         ),
                       ],
                     ),
@@ -788,15 +967,9 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               ),
             ),
             SizedBox(height: 20),
-            ElevatedButton(
+            GradientButton(
+              text: _showYearComparison ? 'Hide Year Comparison' : 'Compare Years',
               onPressed: _toggleYearComparison,
-              child: Text(_showYearComparison
-                  ? 'Hide Year Comparison'
-                  : 'Compare Years'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purpleAccent,
-                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-              ),
             ),
             SizedBox(height: 10),
             if (_showYearComparison) ...[
@@ -843,7 +1016,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 15),
                       SizedBox(
                         height: 250,
                         child: BarChart(
@@ -860,9 +1033,9 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                                   getTitlesWidget: (double value,
                                       TitleMeta meta) {
                                     const titles = [
-                                      'Income\nCurrent', 'Income\nPrev',
-                                      'Expense\nCurrent', 'Expense\nPrev',
-                                      'Savings\nCurrent', 'Savings\nPrev'
+                                      '', '',
+                                      '', '',
+                                      '', ''
                                     ];
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
@@ -908,7 +1081,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: 15),
+                      SizedBox(height: 20),
                       Wrap(
                         spacing: 10,
                         runSpacing: 10,
@@ -967,7 +1140,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           Text(
                             'Total Salary',
                             style: TextStyle(
-                                fontSize: 16, color: Colors.grey[600]),
+                                fontSize: 16, color: Colors.orange),
                           ),
                           SizedBox(height: 8),
                           Text(
@@ -975,7 +1148,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                             style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent
+                                color: Colors.orange[100]
                             ),
                           ),
                         ],
@@ -997,7 +1170,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                           Text(
                             'Balance',
                             style: TextStyle(
-                                fontSize: 16, color: Colors.grey[600]),
+                                fontSize: 16, color: Colors.orange),
                           ),
                           SizedBox(height: 8),
                           Text(
@@ -1005,7 +1178,7 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
                             style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green
+                                color: Colors.orange[100]
                             ),
                           ),
                         ],
@@ -1018,22 +1191,10 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
             SizedBox(height: 20),
 
             // Add Salary Section
-            TextField(
-              controller: _salaryController,
-              decoration: InputDecoration(
-                labelText: 'Enter Salary',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
             SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _setSalary,
-              child: Text('Set Salary'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-              ),
+            GradientButton(
+              text: 'Set Salary',
+              onPressed: () => _showSalaryDialog(context),
             ),
             SizedBox(height: 20),
 
@@ -1042,16 +1203,45 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               controller: _expenseAmountController,
               decoration: InputDecoration(
                 labelText: 'Enter Expense Amount',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: Colors.orange[100]), // Light orange label text
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                  borderSide: BorderSide(
+                    color: Colors.orange[100]!, // Light orange border when not focused
+                    width: 2, // Border thickness
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                  borderSide: BorderSide(
+                    color: Colors.orange[500]!, // Darker orange border when focused
+                    width: 2, // Border thickness
+                  ),
+                ),
               ),
               keyboardType: TextInputType.number,
+              style: TextStyle(color: Colors.orange[300]), // Light orange input text
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _selectedCategory,
               decoration: InputDecoration(
                 labelText: 'Category',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: Colors.orange[100]), // Light orange label text
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                  borderSide: BorderSide(
+                    color: Colors.orange[100]!, // Light orange border when not focused
+                    width: 2, // Border thickness
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                  borderSide: BorderSide(
+                    color: Colors.orange[100]!, // Darker orange border when focused
+                    width: 2, // Border thickness
+                  ),
+                ),
               ),
               onChanged: (String? newValue) {
                 setState(() {
@@ -1061,7 +1251,10 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
               items: _categories.map((String category) {
                 return DropdownMenuItem<String>(
                   value: category,
-                  child: Text(category),
+                  child: Text(
+                    category,
+                    style: TextStyle(color: Colors.orange[100]), // Light orange dropdown text
+                  ),
                 );
               }).toList(),
             ),
@@ -1069,26 +1262,17 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: GradientButton(
+                    text: 'Add Expense',
                     onPressed: _addExpense,
-                    child: Text('Add Expense'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(
-                          vertical: 20, horizontal: 10),
-                    ),
                   ),
                 ),
                 SizedBox(width: 10),
                 Expanded(
-                  child: ElevatedButton(
+                  child: GradientButton(
+                    text: 'Scan Bill',
                     onPressed: _scanBill,
-                    child: Text('Scan Bill'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      padding: EdgeInsets.symmetric(
-                          vertical: 20, horizontal: 10),
-                    ),
+                    isLoading: _isLoading,
                   ),
                 ),
               ],

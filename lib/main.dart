@@ -112,11 +112,11 @@ class _MainScreenState extends State<MainScreen> {
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: 'Expense Tracker',
+            label: 'home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'home',
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Expense Tracker',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.sms),
