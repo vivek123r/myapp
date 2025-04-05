@@ -95,36 +95,34 @@ class _SmsScreenState extends State<SmsScreen> {
       List<SmsMessage> smsList = await query.querySms();
       DateTime now = DateTime.now();
 
-      DateTime firstDateOfCurrentMonth = DateTime(now.year, now.month, 1);
-      DateTime firstDateOfPreviousMonth = DateTime(now.year, now.month - 1, 1);
+      // Calculate date 4 months ago (including current month)
+      DateTime firstDateOfLast4Months = DateTime(now.year, now.month - 3, 1);
 
-      List<SmsMessage> currentMonthMessages = smsList.where((message) {
+      // Filter messages for the last 4 months
+      List<SmsMessage> last4MonthsMessages = smsList.where((message) {
         if (message.date == null) return false;
-        final messageDate = message.date!;
-        return messageDate.isAfter(firstDateOfCurrentMonth) ||
-            messageDate.isAtSameMomentAs(firstDateOfCurrentMonth);
+        return message.date!.isAfter(firstDateOfLast4Months) ||
+            message.date!.isAtSameMomentAs(firstDateOfLast4Months);
       }).toList();
 
+      // Filter bank messages for the last 4 months
       List<SmsMessage> bankMessages = smsList.where((message) {
         final isBankMsg = parser.isBankMessage(message);
         if (message.date == null) return false;
-        final messageDate = message.date!;
-        final inCurrentMonth = messageDate.isAfter(firstDateOfCurrentMonth) ||
-            messageDate.isAtSameMomentAs(firstDateOfCurrentMonth);
-        final inPreviousMonth = messageDate.isAfter(firstDateOfPreviousMonth) &&
-            messageDate.isBefore(firstDateOfCurrentMonth);
-        return isBankMsg && (inCurrentMonth || inPreviousMonth);
+        return isBankMsg &&
+            (message.date!.isAfter(firstDateOfLast4Months) ||
+                message.date!.isAtSameMomentAs(firstDateOfLast4Months));
       }).toList();
 
       // Update session cache
       _sessionMessages = bankMessages;
-      _sessionAllMonthMessages = currentMonthMessages;
+      _sessionAllMonthMessages = last4MonthsMessages;
       _hasReadSmsThisSession = true;
 
       if (mounted) {
         setState(() {
           messages = bankMessages;
-          allMonthMessages = currentMonthMessages;
+          allMonthMessages = last4MonthsMessages;
           isLoading = false;
           isInitialized = true;
         });
@@ -145,7 +143,6 @@ class _SmsScreenState extends State<SmsScreen> {
       }
     }
   }
-
   void _updateBalance() {
     double? firstBalance;
     bool isFirstTransaction = true;
@@ -267,7 +264,7 @@ class _SmsScreenState extends State<SmsScreen> {
                               const Icon(Icons.arrow_downward, color: Colors.green),
                               const SizedBox(height: 8),
                               const Text(
-                                'Income',
+                                'credit',
                                 style: TextStyle(color: Colors.grey),
                               ),
                               const SizedBox(height: 4),
@@ -290,7 +287,7 @@ class _SmsScreenState extends State<SmsScreen> {
                               const Icon(Icons.arrow_upward, color: Colors.red),
                               const SizedBox(height: 8),
                               const Text(
-                                'Expense',
+                                'debit',
                                 style: TextStyle(color: Colors.grey),
                               ),
                               const SizedBox(height: 4),
@@ -365,38 +362,6 @@ class _SmsScreenState extends State<SmsScreen> {
                     ],
 
                     const SizedBox(height: 15),
-
-                    // Savings calculation
-                    Container(
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF252525),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFFFF9500).withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Monthly Savings',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '₹${(totalIncome - totalExpense).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: totalIncome - totalExpense >= 0
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),

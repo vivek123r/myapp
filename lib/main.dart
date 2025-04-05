@@ -4,7 +4,6 @@ import 'package:myapp/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/settings.dart';
 import 'screens/ExpenseTracker_screen.dart';
 import 'screens/sms_screen.dart';
 import 'firebase_options.dart';

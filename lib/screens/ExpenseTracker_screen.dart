@@ -232,25 +232,48 @@ class _ExpenseTrackerScreenState extends State<ExpenseTrackerScreen> {
 
     // Create prompt with specific instructions for bill analysis
     const String promptText = '''
-    Analyze this bill or receipt image.
-    Extract the total amount to be paid. Look for the final amount, which may be labeled as:
-    - "Total"
-    - "Grand Total"
-    - "Amount Due"
-    - "Net Amount"
-    - "Final Amount"
-    
-    If multiple amounts are present, use the final amount that includes all charges (e.g., subtotal, tax, discount).
+Analyze this bill or receipt image. Extract the total amount to be paid. Look for the final amount, which may be labeled as:
+- "Total"
+- "Grand Total"
+- "Amount Due"
+- "Net Amount"
+- "Final Amount"
 
-    Additionally, if you can confidently determine the category of the bill (e.g., Food, Travel, Entertainment, Shopping, etc.), include it in the response.
+If multiple amounts are present, use the final amount that includes all charges (e.g., subtotal, tax, discount).
 
-    Return ONLY a JSON object with the following fields:
-    - "amount" (as a numeric value with no currency symbol)
-    - "category" (as a string, only if you can confidently determine it)
+IMPORTANT: First identify the currency based on:
+1. Currency symbols present (₹, \$, €, £, ¥, etc.)
+2. Currency codes mentioned (INR, USD, EUR, GBP, JPY, etc.)
+3. Language of the receipt (e.g., if in Thai, assume THB unless otherwise specified)
+4. Country-specific formatting or indicators
 
-    Example 1: {"amount": 467.00, "category": "Food"}
-    Example 2: {"amount": 120.50}
-  ''';
+If the amount is in any currency other than Indian Rupees (INR), convert it to INR using these approximate exchange rates:
+- 1 USD = 85.52 INR
+- 1 EUR = 92.4 INR
+- 1 GBP = 110.53 INR
+- 1 AUD = 53.51 INR
+- 1 CAD = 59.45 INR
+- 1 JPY = 0.57 INR
+- 1 CNY = 11.78 INR
+- 1 AED = 23.28 INR
+- For other currencies, make your best estimation based on current global rates
+
+Always return the amount in INR.
+
+Additionally, if you can confidently determine the category of the bill (e.g., Food, Travel, Entertainment, Shopping, etc.), include it in the response.
+
+Return ONLY a JSON object with the following fields:
+- "amount" (as a numeric value in INR, with no currency symbol)
+- "currency" (always "INR")
+- "original_currency" (the original currency code if different from INR)
+- "original_amount" (the original amount before conversion, if different from INR)
+- "category" (as a string, only if you can confidently determine it)
+- "detection_method" (how the original currency was determined: "symbol", "code", "language", or "context")
+
+Example 1: {"amount": 467.00, "currency": "INR", "category": "Food"}
+Example 2: {"amount": 8924.50, "currency": "INR", "original_currency": "USD", "original_amount": 107.50, "detection_method": "symbol"}
+Example 3: {"amount": 120.50, "currency": "INR"}
+''';
 
     try {
       // Create the prompt content
